@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>朝の提出チェッカー | Morning Submission Buddy</title>
+  <meta name="description" content="学級で朝の提出物を電子黒板で自己管理するアプリ">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app-root">
+    <!-- ヘッダーエリア -->
+    <header class="app-header">
+      <div class="header-left">
+        <h1 class="app-title">
+          <span>☀️</span> 朝の提出チェッカー
+        </h1>
+        <span class="date-badge" id="current-date">----年--月--日</span>
+
+        <!-- クラスレベル＆経験値ゲージ -->
+        <div class="level-container" id="level-container">
+          <span class="level-badge" id="level-badge">👑 Lv.0</span>
+          <div class="exp-gauge-wrapper">
+            <div class="exp-gauge-track">
+              <div class="exp-gauge-fill" id="exp-gauge-fill"></div>
+            </div>
+            <span class="exp-fraction-text" id="exp-fraction-text">0/1</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- 日別提出物設定ドロップダウン -->
+        <div class="daily-items-wrapper">
+          <button type="button" class="btn-header accent-items" id="btn-daily-items-toggle" title="この日の提出物を変更する">
+            📝 提出物をえらぶ ▾
+          </button>
+          <div class="daily-items-popover" id="daily-items-popover" style="display: none;">
+            <div class="popover-header">
+              <h4>📝 <span id="popover-date-label">この日</span>の提出物</h4>
+              <button type="button" class="popover-close-btn" id="btn-close-daily-popover">✕</button>
+            </div>
+            <p class="popover-desc">チェックをつけた項目がこの日の提出マスになります（複数選択可）</p>
+            <div class="popover-body" id="daily-items-checklist">
+              <!-- JSで生成 -->
+            </div>
+            <div class="popover-footer">
+              <button type="button" class="btn-popover-save" id="btn-save-daily-items">✓ この内容で決定</button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="btn-header" id="btn-toggle-sound">🔊 音: ON</button>
+        <button type="button" class="btn-header warning" id="btn-open-summary">📋 未提出チェック</button>
+        <button type="button" class="btn-header primary" id="btn-open-settings">⚙️ 先生用設定</button>
+        <button type="button" class="btn-header primary-prev" id="btn-prev-day">◀️ 前の日へ</button>
+        <button type="button" class="btn-header primary-next" id="btn-next-day">▶️ 次の日へ</button>
+      </div>
+    </header>
+
+    <!-- 名簿・提出マス（16:9スクロールなし動的グリッド） -->
+    <main class="grid-wrapper" id="grid-container">
+      <!-- JavaScriptにより動的生成 -->
+    </main>
+
+    <!-- フッター進捗エリア -->
+    <footer class="app-footer">
+      <span class="progress-text" id="progress-text">全体の提出状況: 0 / 0 (0%)</span>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-bar-fill"></div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- 先生用設定モーダル -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>⚙️ クラス設定 & キャラクターカスタマイズ</h2>
+        <button type="button" class="btn-close-modal" id="btn-close-settings">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- 児童名簿設定 -->
+        <section class="settings-section">
+          <h3>👨‍🎓 児童名簿の登録 (改行区切りで入力)</h3>
+          <textarea id="setting-students-input" class="setting-textarea" placeholder="1. あおい&#10;2. いつき&#10;3. うた"></textarea>
+          <div style="margin-top: 8px;">
+            <button type="button" class="btn-header primary" id="btn-save-students">名簿を保存する</button>
+          </div>
+        </section>
+
+        <!-- クラスレベル＆経験値の手動調整 -->
+        <section class="settings-section">
+          <h3>👑 クラスレベル & 経験値の手動調整</h3>
+          <p style="font-size: 12px; color: #64748b; margin-bottom: 10px;">
+            押し間違いや誤操作、アクシデント等があった場合、現在のクラスレベルや経験値（全員提出回数）をここで自由に修正できます。
+          </p>
+          <div class="setting-level-adjust-box">
+            <div class="level-adjust-row">
+              <label for="setting-input-level"><strong>クラスレベル:</strong></label>
+              <div class="stepper-control">
+                <button type="button" class="btn-stepper" id="btn-level-down">－</button>
+                <input type="number" id="setting-input-level" min="0" max="99" value="0" class="input-level-num">
+                <button type="button" class="btn-stepper" id="btn-level-up">＋</button>
+              </div>
+            </div>
+            <div class="level-adjust-row">
+              <label for="setting-input-exp"><strong>現在の経験値 (回数):</strong></label>
+              <div class="stepper-control">
+                <button type="button" class="btn-stepper" id="btn-exp-down">－</button>
+                <input type="number" id="setting-input-exp" min="0" value="0" class="input-level-num">
+                <button type="button" class="btn-stepper" id="btn-exp-up">＋</button>
+                <span class="exp-req-guide" id="setting-exp-req-guide">/ 1 回</span>
+              </div>
+            </div>
+            <div style="margin-top: 10px; display: flex; gap: 8px;">
+              <button type="button" class="btn-header primary" id="btn-save-level-manual">👑 レベル・経験値を保存する</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- キャラクター画像カスタマイズ (5段階レアリティ × 最大10体) -->
+        <section class="settings-section">
+          <h3>🎨 基本キャラクター画像カスタマイズ (各枠最大10体登録)</h3>
+          <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
+            有名なキャラクターや好きなアニメ画像（PNG/JPG/SVG/GIF）をパソコンから選択して登録できます！
+          </p>
+          <div id="setting-characters-container"></div>
+        </section>
+
+        <!-- レベルアップ解禁キャラクター設定 (各レベル最大5体) -->
+        <section class="settings-section">
+          <h3>🏆 レベルアップ解禁キャラクター設定 (各レベル最大5体)</h3>
+          <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
+            クラスのレベルが上がった時に新しく解放・追加されるキャラクター画像を登録できます！ (Lv.1 ～ Lv.5)
+          </p>
+          <div id="setting-level-rewards-container"></div>
+          <div style="margin-top: 12px; display: flex; gap: 8px;">
+            <button type="button" class="btn-header primary" id="btn-save-characters">💾 キャラクター設定を保存する</button>
+            <button type="button" class="btn-header" id="btn-reset-characters">初期キャラクターに戻す</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- 未提出者サマリーモーダル -->
+  <div class="modal-overlay" id="summary-modal">
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-header">
+        <h2>📋 未提出者サマリー確認</h2>
+        <button type="button" class="btn-close-modal" id="btn-close-summary">✕</button>
+      </div>
+      <div class="modal-body" id="summary-list-body">
+        <!-- 未提出者一覧 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- コレクションモーダル -->
+  <div class="modal-overlay" id="collection-modal">
+    <div class="modal-card collection-modal-card">
+      <div class="modal-header">
+        <h2 id="collection-modal-title">📚 コレクション</h2>
+        <button type="button" class="btn-close-modal" id="btn-close-collection">✕</button>
+      </div>
+      <div class="modal-body collection-modal-body" id="collection-modal-body">
+        <!-- コレクション内容 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScriptモジュール群 -->
+  <script src="js/storage.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/confetti.js"></script>
+  <script src="js/characters.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
