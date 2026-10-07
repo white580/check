@@ -132,6 +132,50 @@ html, body {
   font-family: 'Fredoka', 'M PLUS Rounded 1c', sans-serif;
 }
 
+/* ⏰ 提出制限時間バッジ */
+.time-limit-badge {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+}
+
+.time-limit-badge.locked {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #f87171;
+  animation: pulseLock 2s infinite ease-in-out;
+}
+
+@keyframes pulseLock {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+/* ⏰ 時間締め切りロックバナー */
+.time-lock-banner {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 2px solid #ef4444;
+  border-radius: 12px;
+  padding: 6px 14px;
+  margin-bottom: 6px;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+  flex-shrink: 0;
+  animation: popoverFadeIn 0.2s ease-out;
+}
+
 .header-right {
   display: flex;
   align-items: center;
@@ -704,6 +748,62 @@ html, body {
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   font-family: inherit;
+}
+
+/* ⏰ 提出制限時間設定ボックス */
+.setting-time-limit-box {
+  background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.time-limit-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #92400e;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.time-limit-toggle-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #d97706;
+  cursor: pointer;
+}
+
+.time-limit-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding-left: 28px;
+}
+
+.time-limit-input-row label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #78350f;
+}
+
+.input-time-limit {
+  font-size: 14px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border: 1.5px solid #d97706;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #78350f;
+  font-family: inherit;
+}
+
+.time-limit-hint {
+  font-size: 11px;
+  color: #b45309;
 }
 
 /* クラスレベル・経験値の手動調整ボックス */

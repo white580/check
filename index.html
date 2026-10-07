@@ -27,6 +27,9 @@
             <span class="exp-fraction-text" id="exp-fraction-text">0/1</span>
           </div>
         </div>
+
+        <!-- ⏰ 提出制限時間バッジ -->
+        <span class="time-limit-badge" id="time-limit-badge" style="display: none;">⏰ 締切: --:--</span>
       </div>
 
       <div class="header-right">
@@ -58,6 +61,11 @@
       </div>
     </header>
 
+    <!-- ⏰ 時間締め切り時ロックバナー -->
+    <div id="time-lock-banner" class="time-lock-banner" style="display: none;">
+      <span>🔒 本日の提出受付時間は終了しました（設定時刻: <strong id="lock-time-text">08:30</strong>）</span>
+    </div>
+
     <!-- 名簿・提出マス（16:9スクロールなし動的グリッド） -->
     <main class="grid-wrapper" id="grid-container">
       <!-- JavaScriptにより動的生成 -->
@@ -86,6 +94,28 @@
           <textarea id="setting-students-input" class="setting-textarea" placeholder="1. あおい&#10;2. いつき&#10;3. うた"></textarea>
           <div style="margin-top: 8px;">
             <button type="button" class="btn-header primary" id="btn-save-students">名簿を保存する</button>
+          </div>
+        </section>
+
+        <!-- ⏰ 提出受付の制限時間設定 -->
+        <section class="settings-section">
+          <h3>⏰ 提出受付の制限時間設定 (締め切り時刻)</h3>
+          <p style="font-size: 12px; color: #64748b; margin-bottom: 10px;">
+            設定した時刻を過ぎると、児童の提出マスや「ぜんぶOK」の操作が自動的にロックされます。
+          </p>
+          <div class="setting-time-limit-box">
+            <label class="time-limit-toggle-row">
+              <input type="checkbox" id="setting-timelimit-enabled" />
+              <strong>制限時間を有効にする</strong>
+            </label>
+            <div class="time-limit-input-row" id="time-limit-input-container">
+              <label for="setting-timelimit-time"><strong>締め切り時刻:</strong></label>
+              <input type="time" id="setting-timelimit-time" value="08:30" class="input-time-limit" />
+              <span class="time-limit-hint">※この時刻を過ぎると操作がロックされます</span>
+            </div>
+            <div style="margin-top: 10px;">
+              <button type="button" class="btn-header primary" id="btn-save-timelimit">⏰ 制限時間設定を保存する</button>
+            </div>
           </div>
         </section>
 
@@ -119,18 +149,18 @@
           </div>
         </section>
 
-        <!-- キャラクター画像カスタマイズ (5段階レアリティ × 最大10体) -->
+        <!-- キャラクター画像カスタマイズ (5段階レアリティ × 最大99体) -->
         <section class="settings-section">
-          <h3>🎨 基本キャラクター画像カスタマイズ (各枠最大10体登録)</h3>
+          <h3>🎨 基本キャラクター画像カスタマイズ (各枠最大99体登録・複数画像一括追加対応)</h3>
           <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
-            有名なキャラクターや好きなアニメ画像（PNG/JPG/SVG/GIF）をパソコンから選択して登録できます！
+            画像を複数まとめて選択して一括登録できます！各レアリティ枠に最大99枚まで設定可能です。
           </p>
           <div id="setting-characters-container"></div>
         </section>
 
-        <!-- レベルアップ解禁キャラクター設定 (各レベル最大5体) -->
+        <!-- レベルアップ解禁キャラクター設定 (各レベル最大99体) -->
         <section class="settings-section">
-          <h3>🏆 レベルアップ解禁キャラクター設定 (各レベル最大5体)</h3>
+          <h3>🏆 レベルアップ解禁キャラクター設定 (各レベル最大99体・複数画像一括追加対応)</h3>
           <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
             クラスのレベルが上がった時に新しく解放・追加されるキャラクター画像を登録できます！ (Lv.1 ～ Lv.5)
           </p>

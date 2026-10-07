@@ -91,16 +91,16 @@ class CharacterManager {
       if (parsed) {
         this.rarities.forEach(r => {
           if (parsed.pools && parsed.pools[r.key] && Array.isArray(parsed.pools[r.key])) {
-            this.pools[r.key] = parsed.pools[r.key].slice(0, 10);
+            this.pools[r.key] = parsed.pools[r.key].slice(0, 99);
           } else if (parsed[r.key] && Array.isArray(parsed[r.key])) {
-            this.pools[r.key] = parsed[r.key].slice(0, 10);
+            this.pools[r.key] = parsed[r.key].slice(0, 99);
           }
         });
 
         if (parsed.levelRewardPools) {
           for (let lvl = 1; lvl <= 5; lvl++) {
             if (parsed.levelRewardPools[lvl] && Array.isArray(parsed.levelRewardPools[lvl])) {
-              this.levelRewardPools[lvl] = parsed.levelRewardPools[lvl].slice(0, 5).map(c => ({
+              this.levelRewardPools[lvl] = parsed.levelRewardPools[lvl].slice(0, 99).map(c => ({
                 name: c.name || `Lv.${lvl}キャラ`,
                 image: c.image,
                 praise: c.praise || 'OK！',
@@ -135,11 +135,11 @@ class CharacterManager {
     }
   }
 
-  // 枠に基本キャラクターを追加（最大10個）
+  // 枠に基本キャラクターを追加（最大99個）
   addCharacter(rarityKey, charObj) {
     if (!this.pools[rarityKey]) this.pools[rarityKey] = [];
-    if (this.pools[rarityKey].length >= 10) {
-      alert('このレアリティ枠には最大10個までしか登録できません。');
+    if (this.pools[rarityKey].length >= 99) {
+      alert('このレアリティ枠には最大99個までしか登録できません。');
       return false;
     }
     this.pools[rarityKey].push(charObj);
@@ -147,17 +147,48 @@ class CharacterManager {
     return true;
   }
 
-  // レベルアップ解放枠にキャラクターを追加（各レベル最大5個、指定レアリティ付き）
+  // 枠に複数の基本キャラクターを一括追加（最大99個まで）
+  addMultipleCharacters(rarityKey, charObjList) {
+    if (!this.pools[rarityKey]) this.pools[rarityKey] = [];
+    const availableSpace = 99 - this.pools[rarityKey].length;
+    if (availableSpace <= 0) {
+      alert('このレアリティ枠は上限（99個）に達しています。');
+      return 0;
+    }
+    const toAdd = charObjList.slice(0, availableSpace);
+    this.pools[rarityKey].push(...toAdd);
+    this.saveCustomChars();
+    return toAdd.length;
+  }
+
+  // レベルアップ解放枠にキャラクターを追加（各レベル最大99個、指定レアリティ付き）
   addLevelRewardCharacter(level, charObj) {
     if (!this.levelRewardPools[level]) this.levelRewardPools[level] = [];
-    if (this.levelRewardPools[level].length >= 5) {
-      alert(`レベル ${level} の解放枠には最大5個までしか登録できません。`);
+    if (this.levelRewardPools[level].length >= 99) {
+      alert(`レベル ${level} の解放枠には最大99個までしか登録できません。`);
       return false;
     }
     if (!charObj.rarityKey) charObj.rarityKey = 'rare';
     this.levelRewardPools[level].push(charObj);
     this.saveCustomChars();
     return true;
+  }
+
+  // レベルアップ解放枠に複数のキャラクターを一括追加
+  addMultipleLevelRewardCharacters(level, charObjList) {
+    if (!this.levelRewardPools[level]) this.levelRewardPools[level] = [];
+    const availableSpace = 99 - this.levelRewardPools[level].length;
+    if (availableSpace <= 0) {
+      alert(`レベル ${level} の解放枠は上限（99個）に達しています。`);
+      return 0;
+    }
+    const toAdd = charObjList.slice(0, availableSpace).map(c => ({
+      ...c,
+      rarityKey: c.rarityKey || 'rare'
+    }));
+    this.levelRewardPools[level].push(...toAdd);
+    this.saveCustomChars();
+    return toAdd.length;
   }
 
   // レベルアップ解放キャラクターのレアリティ更新

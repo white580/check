@@ -64,6 +64,30 @@ function processImageFile(file, callback) {
   reader.readAsDataURL(file);
 }
 
+// 複数画像ファイルを一括でCanvas最適化して読み込むユーティリティ (ファイルサイズ無制限対応)
+function processMultipleImageFiles(files, progressCallback, completeCallback) {
+  if (!files || files.length === 0) return;
+  const fileArray = Array.from(files);
+  const results = [];
+  let processedCount = 0;
+
+  fileArray.forEach((file, index) => {
+    const cleanName = file.name.replace(/\.[^/.]+$/, '').trim() || `キャラ ${index + 1}`;
+    processImageFile(file, (dataUrl) => {
+      results.push({
+        name: cleanName,
+        image: dataUrl,
+        praise: 'OK！'
+      });
+      processedCount++;
+      if (progressCallback) progressCallback(processedCount, fileArray.length);
+      if (processedCount === fileArray.length) {
+        if (completeCallback) completeCallback(results);
+      }
+    });
+  });
+}
+
 // プリセット提出物項目（自学・れんらくちょう・プリント・その他）
 const PRESET_SUBMISSION_ITEMS = [
   { id: 'item_jigaku', name: '自学', icon: '✍️' },
@@ -107,10 +131,17 @@ class MorningSubmissionApp {
       completedDates: {} // { [dateKey]: bool }
     };
 
+    // ⏰ 提出制限時間設定
+    this.timeLimitConfig = {
+      enabled: false,
+      time: '08:30'
+    };
+
     this.selectedDateKey = this.getTodayKey(); // 現在画面に表示中の運用日付
 
     this.init();
     this.bindEvents();
+    this.startTimeLimitChecker();
     window.addEventListener('resize', () => this.adjustLayout());
   }
 
@@ -130,6 +161,65 @@ class MorningSubmissionApp {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  // 提出受付時間が締め切られているか判定
+  isSubmissionTimeLocked() {
+    if (!this.timeLimitConfig || !this.timeLimitConfig.enabled) return false;
+    if (this.selectedDateKey !== this.getTodayKey()) return false;
+
+    const now = new Date();
+    const currentHours = String(now.getHours()).padStart(2, '0');
+    const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+    const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+    const limitTimeStr = this.timeLimitConfig.time || '08:30';
+    return currentTimeStr >= limitTimeStr;
+  }
+
+  // 制限時間UIの更新（ヘッダーバッジとロックバナー）
+  updateTimeLimitUI() {
+    const badge = document.getElementById('time-limit-badge');
+    const banner = document.getElementById('time-lock-banner');
+    const lockTimeText = document.getElementById('lock-time-text');
+
+    if (!this.timeLimitConfig || !this.timeLimitConfig.enabled) {
+      if (badge) badge.style.display = 'none';
+      if (banner) banner.style.display = 'none';
+      return;
+    }
+
+    const limitTime = this.timeLimitConfig.time || '08:30';
+    const isLocked = this.isSubmissionTimeLocked();
+
+    if (badge) {
+      badge.style.display = 'inline-block';
+      if (isLocked) {
+        badge.textContent = `⏰ 受付終了 (${limitTime})`;
+        badge.classList.add('locked');
+      } else {
+        badge.textContent = `⏰ 締切: ${limitTime}`;
+        badge.classList.remove('locked');
+      }
+    }
+
+    if (banner) {
+      if (isLocked && this.selectedDateKey === this.getTodayKey()) {
+        banner.style.display = 'flex';
+        if (lockTimeText) lockTimeText.textContent = limitTime;
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+  }
+
+  // 定期タイマーで時間チェック
+  startTimeLimitChecker() {
+    if (this._timeLimitTimer) clearInterval(this._timeLimitTimer);
+    this.updateTimeLimitUI();
+    this._timeLimitTimer = setInterval(() => {
+      this.updateTimeLimitUI();
+    }, 15000);
   }
 
   // 日付ごとの提出物リストを取得（未設定の場合は直近設定またはデフォルトからコピーして保存・維持）
@@ -221,6 +311,9 @@ class MorningSubmissionApp {
           this.levelData = saved.levelData;
           if (!this.levelData.completedDates) this.levelData.completedDates = {};
         }
+        if (saved.timeLimitConfig) {
+          this.timeLimitConfig = saved.timeLimitConfig;
+        }
       }
     } catch (e) {
       console.warn('Load state error:', e);
@@ -237,7 +330,8 @@ class MorningSubmissionApp {
         historyState: this.historyState,
         dailyHistory: this.dailyHistory,
         selectedDateKey: this.selectedDateKey,
-        levelData: this.levelData
+        levelData: this.levelData,
+        timeLimitConfig: this.timeLimitConfig
       };
 
       if (window.appStorage) {
@@ -360,6 +454,7 @@ class MorningSubmissionApp {
     }
 
     this.updateDailyItemsButtonLabel();
+    this.updateTimeLimitUI();
   }
 
   // 日別提出物ボタンのラベル更新
@@ -580,6 +675,11 @@ class MorningSubmissionApp {
 
   // タッチ・トグル動作
   toggleItem(studentId, itemId) {
+    if (this.isSubmissionTimeLocked()) {
+      alert(`⏰ 本日の提出受付時間（${this.timeLimitConfig.time}）を過ぎたため、操作は締め切られました。`);
+      return;
+    }
+
     const current = this.getItemState(studentId, itemId);
     if (current.checked) {
       this.setItemState(studentId, itemId, false, null);
@@ -603,6 +703,11 @@ class MorningSubmissionApp {
 
   // 「ぜんぶOK」一括トグル
   toggleAllOk(studentId) {
+    if (this.isSubmissionTimeLocked()) {
+      alert(`⏰ 本日の提出受付時間（${this.timeLimitConfig.time}）を過ぎたため、操作は締め切られました。`);
+      return;
+    }
+
     const isAllOk = this.isStudentAllOk(studentId);
     const currentItems = this.getItemsForDate(this.selectedDateKey);
 
@@ -947,9 +1052,39 @@ class MorningSubmissionApp {
       };
     }
 
+    this.renderTimeLimitSettings();
     this.renderLevelAdjustmentSettings();
     this.renderCharacterSettings();
     this.renderLevelRewardSettings();
+  }
+
+  // ⏰ 提出制限時間設定
+  renderTimeLimitSettings() {
+    const enabledCheckbox = document.getElementById('setting-timelimit-enabled');
+    const timeInput = document.getElementById('setting-timelimit-time');
+    const saveBtn = document.getElementById('btn-save-timelimit');
+
+    if (!enabledCheckbox || !timeInput) return;
+
+    enabledCheckbox.checked = !!(this.timeLimitConfig && this.timeLimitConfig.enabled);
+    timeInput.value = (this.timeLimitConfig && this.timeLimitConfig.time) ? this.timeLimitConfig.time : '08:30';
+
+    if (saveBtn) {
+      saveBtn.onclick = () => {
+        this.timeLimitConfig = {
+          enabled: enabledCheckbox.checked,
+          time: timeInput.value || '08:30'
+        };
+
+        this.saveState();
+        this.updateTimeLimitUI();
+        if (this.timeLimitConfig.enabled) {
+          alert(`⏰ 提出制限時間を【 ${this.timeLimitConfig.time} 】に設定・保存しました！`);
+        } else {
+          alert('⏰ 提出制限時間を【 無効 (解除) 】に設定・保存しました！');
+        }
+      };
+    }
   }
 
   // 👑 クラスレベル & 経験値の手動調整
@@ -1049,7 +1184,7 @@ class MorningSubmissionApp {
     }
   }
 
-  // 基本キャラクター枠設定 (ファイルサイズ無制限対応)
+  // 基本キャラクター枠設定 (最大99枚・複数画像一括追加対応)
   renderCharacterSettings() {
     const container = document.getElementById('setting-characters-container');
     if (!container || !window.characterManager) return;
@@ -1064,18 +1199,18 @@ class MorningSubmissionApp {
       sec.innerHTML = `
         <div class="rarity-header">
           <span class="rarity-badge ${r.effectClass}">${r.badge} ${r.name}</span>
-          <span class="rarity-count">登録数: ${pool.length} / 10体</span>
+          <span class="rarity-count">登録数: ${pool.length} / 99体</span>
         </div>
         <div class="rarity-pool-grid" id="pool-grid-${r.key}"></div>
-        ${pool.length < 10 ? `
+        ${pool.length < 99 ? `
           <div class="add-char-form">
             <input type="text" placeholder="キャラ名" id="add-char-name-${r.key}" style="width: 90px;" />
             <input type="text" placeholder="画像URLまたは選択画像" id="add-char-url-${r.key}" style="flex:1;" />
-            <input type="file" id="add-char-file-${r.key}" accept="image/*" style="display:none;" />
-            <button type="button" class="btn-file-select" id="btn-file-select-${r.key}">画像選択</button>
+            <input type="file" id="add-char-file-${r.key}" accept="image/*" multiple style="display:none;" />
+            <button type="button" class="btn-file-select" id="btn-file-select-${r.key}">📁 画像選択 (複数可)</button>
             <button type="button" class="btn-add-char" data-key="${r.key}">追加</button>
           </div>
-        ` : '<p class="max-notice" style="font-size:12px; color:#94a3b8;">※最大10体に達しています</p>'}
+        ` : '<p class="max-notice" style="font-size:12px; color:#94a3b8;">※最大99体に達しています</p>'}
       `;
 
       container.appendChild(sec);
@@ -1104,15 +1239,37 @@ class MorningSubmissionApp {
         fileBtn.onclick = () => fileInput.click();
       }
 
-      if (fileInput && urlInput) {
+      if (fileInput) {
         fileInput.onchange = (e) => {
-          const file = e.target.files[0];
-          if (file) {
+          const files = e.target.files;
+          if (!files || files.length === 0) return;
+
+          if (files.length === 1) {
+            // 1枚選択の場合: プレビュー表示し、名前欄にも自動セット
             fileBtn.textContent = '読込中...';
-            processImageFile(file, (dataUrl) => {
-              urlInput.value = dataUrl;
+            const cleanName = files[0].name.replace(/\.[^/.]+$/, '').trim();
+            const nameInput = sec.querySelector(`#add-char-name-${r.key}`);
+            if (nameInput && (!nameInput.value || nameInput.value === 'カスタムキャラ')) {
+              nameInput.value = cleanName;
+            }
+            processImageFile(files[0], (dataUrl) => {
+              if (urlInput) urlInput.value = dataUrl;
               fileBtn.textContent = '選択済✓';
             });
+          } else {
+            // 複数枚選択の場合: 一括最適化してそのまま一括追加！
+            fileBtn.textContent = `読込中 (0/${files.length})...`;
+            processMultipleImageFiles(
+              files,
+              (processed, total) => {
+                fileBtn.textContent = `読込中 (${processed}/${total})...`;
+              },
+              (results) => {
+                const addedCount = window.characterManager.addMultipleCharacters(r.key, results);
+                alert(`✨ ${addedCount}枚のキャラクター画像を一括追加しました！`);
+                this.renderCharacterSettings();
+              }
+            );
           }
         };
       }
@@ -1172,7 +1329,7 @@ class MorningSubmissionApp {
     }
   }
 
-  // 🏆 レベルアップ解禁キャラクター設定描画 (ファイルサイズ無制限対応・レアリティ選択付き)
+  // 🏆 レベルアップ解禁キャラクター設定描画 (最大99枚・複数画像一括追加対応)
   renderLevelRewardSettings() {
     const container = document.getElementById('setting-level-rewards-container');
     if (!container || !window.characterManager) return;
@@ -1192,21 +1349,21 @@ class MorningSubmissionApp {
       sec.innerHTML = `
         <div class="rarity-header">
           <span class="rarity-badge effect-ssrare">🏆 Lv.${lvl} 解禁キャラクター枠</span>
-          <span class="rarity-count">登録数: ${pool.length} / 5体</span>
+          <span class="rarity-count">登録数: ${pool.length} / 99体</span>
         </div>
         <div class="rarity-pool-grid" id="lvl-reward-pool-grid-${lvl}"></div>
-        ${pool.length < 5 ? `
+        ${pool.length < 99 ? `
           <div class="add-char-form" style="flex-wrap:wrap; gap:6px;">
             <input type="text" placeholder="キャラ名" id="add-lvl-char-name-${lvl}" style="width: 90px;" />
             <select id="add-lvl-char-rarity-${lvl}" class="rarity-select-dropdown" title="レアリティを選択">
               ${makeRarityOptions('rare')}
             </select>
             <input type="text" placeholder="画像URLまたは選択画像" id="add-lvl-char-url-${lvl}" style="flex:1; min-width:120px;" />
-            <input type="file" id="add-lvl-char-file-${lvl}" accept="image/*" style="display:none;" />
-            <button type="button" class="btn-file-select" id="btn-lvl-file-select-${lvl}">画像選択</button>
+            <input type="file" id="add-lvl-char-file-${lvl}" accept="image/*" multiple style="display:none;" />
+            <button type="button" class="btn-file-select" id="btn-lvl-file-select-${lvl}">📁 画像選択 (複数可)</button>
             <button type="button" class="btn-add-char" data-lvl="${lvl}">追加</button>
           </div>
-        ` : '<p class="max-notice" style="font-size:12px; color:#94a3b8;">※最大5体に達しています</p>'}
+        ` : '<p class="max-notice" style="font-size:12px; color:#94a3b8;">※最大99体に達しています</p>'}
       `;
 
       container.appendChild(sec);
@@ -1241,15 +1398,42 @@ class MorningSubmissionApp {
         fileBtn.onclick = () => fileInput.click();
       }
 
-      if (fileInput && urlInput) {
+      if (fileInput) {
         fileInput.onchange = (e) => {
-          const file = e.target.files[0];
-          if (file) {
+          const files = e.target.files;
+          if (!files || files.length === 0) return;
+
+          const raritySelect = sec.querySelector(`#add-lvl-char-rarity-${lvl}`);
+          const selectedRarity = raritySelect ? raritySelect.value : 'rare';
+
+          if (files.length === 1) {
             fileBtn.textContent = '読込中...';
-            processImageFile(file, (dataUrl) => {
-              urlInput.value = dataUrl;
+            const cleanName = files[0].name.replace(/\.[^/.]+$/, '').trim();
+            const nameInput = sec.querySelector(`#add-lvl-char-name-${lvl}`);
+            if (nameInput && (!nameInput.value || nameInput.value.startsWith('Lv.'))) {
+              nameInput.value = cleanName;
+            }
+            processImageFile(files[0], (dataUrl) => {
+              if (urlInput) urlInput.value = dataUrl;
               fileBtn.textContent = '選択済✓';
             });
+          } else {
+            fileBtn.textContent = `読込中 (0/${files.length})...`;
+            processMultipleImageFiles(
+              files,
+              (processed, total) => {
+                fileBtn.textContent = `読込中 (${processed}/${total})...`;
+              },
+              (results) => {
+                const prepared = results.map(r => ({
+                  ...r,
+                  rarityKey: selectedRarity
+                }));
+                const addedCount = window.characterManager.addMultipleLevelRewardCharacters(lvl, prepared);
+                alert(`✨ ${addedCount}枚の解禁キャラクター画像を一括追加しました！`);
+                this.renderLevelRewardSettings();
+              }
+            );
           }
         };
       }
